@@ -6,61 +6,80 @@ import org.scalajs.dom
 
 object Square {
 
-  case class State(value: String = "")
+  case class Props(value: String, onClick: Callback)
 
-  class Backend(bs: BackendScope[Int, State]) {
-    def render(s: Int, state: State) =
+  class Backend(bs: BackendScope[Props, Unit]) {
+    def render(p: Props) =
       <.button(
         ^.cls := "square",
-        ^.id := s"square$s",
-        ^.onClick --> bs.setState(State("X")),
-        state.value
+        ^.onClick --> p.onClick,
+        p.value
       )
 
   }
   val component = ScalaComponent
-    .builder[Int]("Square")
-    .initialState(State())
+    .builder[Props]("Square")
     .renderBackend[Backend]
     .build
 
-  def apply(i: Int) = component(i)
+  def apply(value: Option[String], onClick: Callback) =
+    component(Props(value.getOrElse(""), onClick))
 }
 
 object Board {
-  def renderSquare(i: Int) = Square(i)
+
+  case class State(nextMove: String, vals: Vector[Option[String]])
+
+  class Backend(bs: BackendScope[Unit, State]) {
+
+    val switchNextMove: PartialFunction[String, String] = {
+      case "X" => "O"
+      case "O" => "X"
+    }
+
+    def handleClick(i: Int) =
+      bs.modState(s =>
+          s.vals(i) match {
+            case None    => State(switchNextMove(s.nextMove), s.vals.updated(i, Some(s.nextMove)))
+            case _ => s
+          }
+      )
+
+    def render(s: State) = {
+      val status = s"Next player: ${s.nextMove}"
+      def renderSquare(i: Int) = Square(s.vals(i), handleClick(i))
+      <.div(
+        <.div(
+          ^.cls := "status",
+          status
+        ),
+        <.div(
+          ^.cls := "board-row",
+          renderSquare(0),
+          renderSquare(1),
+          renderSquare(2)
+        ),
+        <.div(
+          ^.cls := "board-row",
+          renderSquare(3),
+          renderSquare(4),
+          renderSquare(5)
+        ),
+        <.div(
+          ^.cls := "board-row",
+          renderSquare(6),
+          renderSquare(7),
+          renderSquare(8)
+        )
+      )
+    }
+
+  }
 
   val component = ScalaComponent
     .builder[Unit]("Board")
-    .renderStatic(
-      {
-        val status = "Next player: X"
-        <.div(
-          <.div(
-            ^.cls := "status",
-            status
-          ),
-          <.div(
-            ^.cls := "board-row",
-            renderSquare(0),
-            renderSquare(1),
-            renderSquare(2)
-          ),
-          <.div(
-            ^.cls := "board-row",
-            renderSquare(3),
-            renderSquare(4),
-            renderSquare(5)
-          ),
-          <.div(
-            ^.cls := "board-row",
-            renderSquare(6),
-            renderSquare(7),
-            renderSquare(8)
-          )
-        )
-      }
-    )
+    .initialState(State("X", Vector.fill(9)(None)))
+    .renderBackend[Backend]
     .build
 
   def apply() = component()
