@@ -4,29 +4,41 @@ import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
 import org.scalajs.dom
 
-
 object Square {
-  val component = ScalaComponent.builder[Int]("Square")
-    .render_P( i=>
-      <.button(^.cls := "square", ^.id := s"square$i", ^.onClick -->  Callback.alert(s"button $i clicked") ,s"$i")
-    )
+
+  case class State(value: String = "")
+
+  class Backend(bs: BackendScope[Int, State]) {
+    def render(s: Int, state: State) =
+      <.button(
+        ^.cls := "square",
+        ^.id := s"square$s",
+        ^.onClick --> bs.setState(State("X")),
+        state.value
+      )
+
+  }
+  val component = ScalaComponent
+    .builder[Int]("Square")
+    .initialState(State())
+    .renderBackend[Backend]
     .build
 
-    def apply(i:Int) = component(i)
+  def apply(i: Int) = component(i)
 }
-
 
 object Board {
   def renderSquare(i: Int) = Square(i)
 
-  val component = ScalaComponent.builder[Unit]("Board")
+  val component = ScalaComponent
+    .builder[Unit]("Board")
     .renderStatic(
       {
         val status = "Next player: X"
         <.div(
           <.div(
             ^.cls := "status",
-            status,
+            status
           ),
           <.div(
             ^.cls := "board-row",
@@ -54,27 +66,26 @@ object Board {
   def apply() = component()
 }
 
-
 object Game {
-  val component = ScalaComponent.builder[Unit]("Game")
+  val component = ScalaComponent
+    .builder[Unit]("Game")
     .renderStatic(
       <.div(
         ^.cls := "game",
         <.div(
           ^.cls := "game-board",
-          Board(),
+          Board()
         ),
         <.div(
-          <.div(/*Status*/),
-          <.ol(/* TODO */),
-        ),
+          <.div( /*Status*/ ),
+          <.ol( /* TODO */ )
+        )
       )
     )
     .build
 
   def apply() = component()
 }
-
 
 object TutorialApp {
   def main(args: Array[String]): Unit = {
