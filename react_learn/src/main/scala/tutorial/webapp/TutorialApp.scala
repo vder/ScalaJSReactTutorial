@@ -6,18 +6,18 @@ import org.scalajs.dom
 
 
 object Square {
-  val component = ScalaComponent.builder[Unit]("Square")
-    .renderStatic(
-      <.button(^.cls := "square")
+  val component = ScalaComponent.builder[Int]("Square")
+    .render_P( i=>
+      <.button(^.cls := "square", ^.id := s"square$i", ^.onClick -->  Callback.alert(s"button $i clicked") ,s"$i")
     )
     .build
 
-    def apply() = component()
+    def apply(i:Int) = component(i)
 }
 
 
 object Board {
-  def renderSquare(i: Int) = Square()
+  def renderSquare(i: Int) = Square(i)
 
   val component = ScalaComponent.builder[Unit]("Board")
     .renderStatic(
