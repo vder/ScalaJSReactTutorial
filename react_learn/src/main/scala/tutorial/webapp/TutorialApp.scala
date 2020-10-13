@@ -28,25 +28,67 @@ object Square {
 
 object Board {
 
-  case class State(nextMove: String, vals: Vector[Option[String]])
+  val lines = List(
+    List(0, 1, 2),
+    List(3, 4, 5),
+    List(6, 7, 8),
+    List(0, 3, 6),
+    List(1, 4, 7),
+    List(2, 5, 8),
+    List(0, 4, 8),
+    List(2, 4, 6)
+  );
 
-  class Backend(bs: BackendScope[Unit, State]) {
+  def calculateWinner(state: Vector[Option[String]]) =
+    lines
+      .map(_.map(state(_)) match {
+        case Some(q) :: Some(w) :: Some(e) :: Nil if w == e && q == e =>
+          Some(q)
+        case _ => None
+      })
+      .collectFirst { case Some(x) => x }
 
-    val switchNextMove: PartialFunction[String, String] = {
-      case "X" => "O"
-      case "O" => "X"
-    }
+  case class State(
+      hasWon: Option[String],
+      nextMove: Option[String],
+      vals: Vector[Option[String]]
+  )
+
+  class Backend(bs: BackendScope[Unit, (State, List[State])]) {
+
+    val switchNextMove = (winner: Option[String], prev: Option[String]) =>
+      winner match {
+        case Some(_) => None
+        case _       => prev.map(x => if (x == "O") "X" else "O")
+      }
 
     def handleClick(i: Int) =
-      bs.modState(s =>
+      bs.modState {
+        case (s, list) =>
           s.vals(i) match {
-            case None    => State(switchNextMove(s.nextMove), s.vals.updated(i, Some(s.nextMove)))
-            case _ => s
+            case None =>
+              val newBoard: Vector[Option[String]] =
+                s.vals.updated(i, s.nextMove)
+              val winner = calculateWinner(newBoard)
+              (
+                State(
+                  winner,
+                  switchNextMove(winner, s.nextMove),
+                  newBoard
+                ),
+                s :: list
+              )
+            case _ => (s, list)
           }
-      )
+      }
 
-    def render(s: State) = {
-      val status = s"Next player: ${s.nextMove}"
+    def render(stateWithHistory: (State, List[State])) = {
+      val (s, list) = stateWithHistory
+      val status = s.hasWon match {
+        case Some(x) => s" $x has Won"
+        case _ =>
+          s"Next player: ${s.nextMove.getOrElse("")}"
+      }
       def renderSquare(i: Int) = Square(s.vals(i), handleClick(i))
       <.div(
         <.div(
@@ -70,6 +112,12 @@ object Board {
           renderSquare(6),
           renderSquare(7),
           renderSquare(8)
+        ),
+        <.div(
+          <.ol(
+            (<.li(s.vals.mkString(",")) ::
+              (list.map(_.vals) map (x => <.li(x.mkString(","))))): _*
+          )
         )
       )
     }
@@ -78,7 +126,9 @@ object Board {
 
   val component = ScalaComponent
     .builder[Unit]("Board")
-    .initialState(State("X", Vector.fill(9)(None)))
+    .initialState(
+      (State(None, Some("X"), Vector.fill(9)(None)), Nil: List[State])
+    )
     .renderBackend[Backend]
     .build
 
